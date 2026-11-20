@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ポートマントー語ジェネレーター</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-violet-950 text-violet-100 min-h-screen">
+<div class="max-w-2xl mx-auto px-4 py-8">
+  <header class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-violet-200 mb-1">🔤 ポートマントー語ジェネレーター</h1>
+    <p class="text-violet-500 text-sm">2つの単語を混ぜて新しい言葉を作ろう</p>
+  </header>
+
+  <div class="bg-violet-900 border border-violet-700 rounded-2xl p-6 mb-6">
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label for="word1" class="block text-sm text-violet-400 mb-1">単語1</label>
+        <input id="word1" type="text" placeholder="smoke" class="w-full bg-violet-800 border border-violet-600 text-violet-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-300" aria-label="1つ目の単語を入力" oninput="updateSliders()">
+      </div>
+      <div>
+        <label for="word2" class="block text-sm text-violet-400 mb-1">単語2</label>
+        <input id="word2" type="text" placeholder="fog" class="w-full bg-violet-800 border border-violet-600 text-violet-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-300" aria-label="2つ目の単語を入力" oninput="updateSliders()">
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm text-violet-400 mb-2">単語1の分割位置: 前半を使用</label>
+      <input id="split1" type="range" min="1" max="10" value="3" class="w-full accent-violet-400" aria-label="単語1の分割位置" oninput="updatePreview()">
+      <div class="flex justify-between text-xs text-violet-500 mt-1">
+        <span id="word1Front" class="text-violet-200 font-mono"></span>
+        <span id="word1Back" class="text-violet-500 font-mono line-through"></span>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <label class="block text-sm text-violet-400 mb-2">単語2の分割位置: 後半を使用</label>
+      <input id="split2" type="range" min="1" max="10" value="2" class="w-full accent-violet-400" aria-label="単語2の分割位置" oninput="updatePreview()">
+      <div class="flex justify-between text-xs text-violet-500 mt-1">
+        <span id="word2Front" class="text-violet-500 font-mono line-through"></span>
+        <span id="word2Back" class="text-violet-200 font-mono"></span>
+      </div>
+    </div>
+
+    <div class="bg-violet-950 rounded-xl p-4 text-center mb-4">
+      <div class="text-xs text-violet-500 uppercase tracking-wider mb-2">生成されたポートマントー語</div>
+      <div id="resultWord" class="text-3xl font-bold text-violet-100 mb-1">smog</div>
+      <div id="resultReading" class="text-sm text-violet-400"></div>
+    </div>
+
+    <button onclick="generateAll()" class="w-full bg-violet-400 hover:bg-violet-300 text-violet-950 font-bold py-2.5 rounded-xl transition">全パターン生成</button>
+  </div>
+
+  <div id="allPatterns" class="hidden bg-violet-900 border border-violet-700 rounded-2xl p-5 mb-6">
+    <h2 class="text-sm font-bold text-violet-300 uppercase tracking-wider mb-3">全分割パターン</h2>
+    <div id="patternList" class="grid grid-cols-2 gap-2"></div>
+  </div>
+
+  <div id="savedArea" class="mb-6 hidden">
+    <h2 class="text-sm font-bold text-violet-400 uppercase tracking-wider mb-3">保存した造語</h2>
+    <div id="savedList" class="space-y-2"></div>
+  </div>
+
+  <div class="bg-violet-900 border border-violet-800 rounded-2xl p-6">
+    <h2 class="text-sm font-bold text-violet-300 uppercase tracking-wider mb-4">有名なポートマントー語の例</h2>
+    <div id="exampleList" class="grid grid-cols-2 gap-2"></div>
+  </div>
+</div>
+
+<script>
+const EXAMPLES = [
+  { word: 'smog', w1: 'smoke', w2: 'fog', meaning: '煙霧' },
+  { word: 'brunch', w1: 'breakfast', w2: 'lunch', meaning: '遅い朝食' },
+  { word: 'netizen', w1: 'net', w2: 'citizen', meaning: 'ネット市民' },
+  { word: 'podcast', w1: 'iPod', w2: 'broadcast', meaning: '音声配信' },
+  { word: 'emoji', w1: '絵（e）', w2: '文字（moji）', meaning: '絵文字' },
+  { word: 'motel', w1: 'motor', w2: 'hotel', meaning: 'モーテル' },
+  { word: 'pixel', w1: 'picture', w2: 'element', meaning: '画素' },
+  { word: 'blog', w1: 'web', w2: 'log', meaning: 'ウェブ日記' },
+  { word: 'Brexit', w1: 'Britain', w2: 'exit', meaning: '英国離脱' },
+  { word: 'staycation', w1: 'stay', w2: 'vacation', meaning: '自宅休暇' },
+  { word: 'spork', w1: 'spoon', w2: 'fork', meaning: 'スプーンフォーク' },
+  { word: 'edutainment', w1: 'education', w2: 'entertainment', meaning: '学習娯楽' },
+  { word: 'guesstimate', w1: 'guess', w2: 'estimate', meaning: '推定値' },
+  { word: 'infomercial', w1: 'information', w2: 'commercial', meaning: '情報広告' },
+  { word: 'biopic', w1: 'biography', w2: 'picture', meaning: '伝記映画' },
+  { word: 'mockumentary', w1: 'mock', w2: 'documentary', meaning: '偽ドキュメンタリー' },
+];
+
+function renderExamples() {
+  const list = document.getElementById('exampleList');
+  EXAMPLES.forEach(ex => {
+    const div = document.createElement('div');
+    div.className = 'bg-violet-950 rounded-lg p-3 cursor-pointer hover:bg-violet-800 transition';
+    div.setAttribute('role', 'button');
+    div.setAttribute('aria-label', ex.word + 'をセット');
+    const wordEl = document.createElement('div');
+    wordEl.className = 'font-bold text-violet-200 text-sm';
+    wordEl.textContent = ex.word;
+    const srcEl = document.createElement('div');
+    srcEl.className = 'text-xs text-violet-500';
+    srcEl.textContent = ex.w1 + ' + ' + ex.w2;
+    const meanEl = document.createElement('div');
+    meanEl.className = 'text-xs text-violet-400 mt-1';
+    meanEl.textContent = ex.meaning;
+    div.appendChild(wordEl);
+    div.appendChild(srcEl);
+    div.appendChild(meanEl);
+    div.onclick = () => {
+      document.getElementById('word1').value = ex.w1.replace(/[（）()]/g, '');
+      document.getElementById('word2').value = ex.w2.replace(/[（）()]/g, '');
+      updateSliders();
+    };
+    list.appendChild(div);
+  });
+}
+
+function updateSliders() {
+  const w1 = document.getElementById('word1').value.trim();
+  const w2 = document.getElementById('word2').value.trim();
+  const s1 = document.getElementById('split1');
+  const s2 = document.getElementById('split2');
+  if (w1) {
+    s1.max = Math.max(1, w1.length - 1);
+    s1.value = Math.min(parseInt(s1.value), s1.max);
+  }
+  if (w2) {
+    s2.max = Math.max(1, w2.length - 1);
+    s2.value = Math.min(parseInt(s2.value), s2.max);
+  }
+  updatePreview();
+}
+
+function updatePreview() {
+  const w1 = document.getElementById('word1').value.trim() || 'smoke';
+  const w2 = document.getElementById('word2').value.trim() || 'fog';
+  const s1 = parseInt(document.getElementById('split1').value);
+  const s2 = parseInt(document.getElementById('split2').value);
+
+  const front = w1.substring(0, Math.min(s1, w1.length));
+  const back = w2.substring(Math.min(s2, w2.length));
+  const combined = front + back;
+
+  document.getElementById('word1Front').textContent = front + '|' + w1.substring(s1);
+  document.getElementById('word1Back').textContent = '';
+  document.getElementById('word2Front').textContent = w2.substring(0, s2) + '|' + back;
+  document.getElementById('word2Back').textContent = '';
+  document.getElementById('resultWord').textContent = combined || '—';
+
+  // Simple reading estimation
+  document.getElementById('resultReading').textContent = front + ' + ' + back + ' = ' + combined;
+}
+
+function generateAll() {
+  const w1 = document.getElementById('word1').value.trim();
+  const w2 = document.getElementById('word2').value.trim();
+  if (!w1 || !w2) { alert('2つの単語を入力してください'); return; }
+
+  const list = document.getElementById('patternList');
+  list.innerHTML = '';
+  const patterns = [];
+  for (let i = 1; i < w1.length; i++) {
+    for (let j = 1; j < w2.length; j++) {
+      const front = w1.substring(0, i);
+      const back = w2.substring(j);
+      if (back.length > 0 && front.length > 0) {
+        patterns.push({ word: front + back, front, back, i, j });
+      }
+    }
+  }
+
+  // Show top patterns (sorted by balanced split)
+  const balanced = patterns.sort((a, b) => {
+    const aScore = Math.abs(a.i / w1.length - 0.5) + Math.abs((w2.length - a.j) / w2.length - 0.5);
+    const bScore = Math.abs(b.i / w1.length - 0.5) + Math.abs((w2.length - b.j) / w2.length - 0.5);
+    return aScore - bScore;
+  }).slice(0, 12);
+
+  balanced.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'bg-violet-950 rounded-lg p-2 cursor-pointer hover:bg-violet-800 transition';
+    div.setAttribute('role', 'button');
+    div.setAttribute('aria-label', p.word + 'を選択');
+    const wordEl = document.createElement('div');
+    wordEl.className = 'font-bold text-violet-200 text-sm';
+    wordEl.textContent = p.word;
+    const srcEl = document.createElement('div');
+    srcEl.className = 'text-xs text-violet-500';
+    srcEl.textContent = p.front + '|' + p.back;
+    div.appendChild(wordEl);
+    div.appendChild(srcEl);
+    div.onclick = () => {
+      document.getElementById('split1').value = p.i;
+      document.getElementById('split2').value = p.j;
+      updatePreview();
+    };
+    list.appendChild(div);
+  });
+
+  document.getElementById('allPatterns').classList.remove('hidden');
+}
+
+function saveResult() {
+  const word = document.getElementById('resultWord').textContent;
+  if (!word || word === '—') return;
+  const w1 = document.getElementById('word1').value.trim();
+  const w2 = document.getElementById('word2').value.trim();
+  const saved = JSON.parse(localStorage.getItem('portmanteau_saved') || '[]');
+  saved.unshift({ word, w1, w2, ts: Date.now() });
+  if (saved.length > 30) saved.pop();
+  localStorage.setItem('portmanteau_saved', JSON.stringify(saved));
+  loadSaved();
+}
+
+function loadSaved() {
+  const saved = JSON.parse(localStorage.getItem('portmanteau_saved') || '[]');
+  const area = document.getElementById('savedArea');
+  const list = document.getElementById('savedList');
+  if (saved.length === 0) { area.classList.add('hidden'); return; }
+  area.classList.remove('hidden');
+  list.innerHTML = '';
+  saved.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'bg-violet-900 border border-violet-700 rounded-lg p-3 flex justify-between items-center';
+    const info = document.createElement('div');
+    const wordEl = document.createElement('span');
+    wordEl.className = 'font-bold text-violet-200 text-sm';
+    wordEl.textContent = item.word + ' ';
+    const srcEl = document.createElement('span');
+    srcEl.className = 'text-xs text-violet-500';
+    srcEl.textContent = '(' + item.w1 + ' + ' + item.w2 + ')';
+    info.appendChild(wordEl);
+    info.appendChild(srcEl);
+    const delBtn = document.createElement('button');
+    delBtn.className = 'text-xs text-red-500 hover:text-red-400';
+    delBtn.textContent = '削除';
+    delBtn.setAttribute('aria-label', item.word + 'を削除');
+    delBtn.onclick = () => {
+      saved.splice(idx, 1);
+      localStorage.setItem('portmanteau_saved', JSON.stringify(saved));
+      loadSaved();
+    };
+    div.appendChild(info);
+    div.appendChild(delBtn);
+    list.appendChild(div);
+  });
+}
+
+// Save button in output area
+document.addEventListener('DOMContentLoaded', () => {
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'w-full mt-3 bg-violet-700 hover:bg-violet-600 text-violet-200 font-semibold py-2 rounded-xl text-sm transition';
+  saveBtn.textContent = '💾 造語を保存';
+  saveBtn.setAttribute('aria-label', '造語を保存する');
+  saveBtn.onclick = saveResult;
+  const resultBox = document.querySelector('.bg-violet-950.rounded-xl');
+  if (resultBox) resultBox.after(saveBtn);
+  renderExamples();
+  updateSliders();
+  loadSaved();
+});
+</script>
+</body>
+</html>
